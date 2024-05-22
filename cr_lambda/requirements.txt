@@ -1,0 +1,3 @@
+opensearch-py~=2.3.2
+requests_aws4auth~=1.2.3
+cfnresponse~=1.1.4

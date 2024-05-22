@@ -1,0 +1,184 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Kubernetes Pods Automation API",
+        "version": "1.0.0",
+        "description": "API for listing Kubernetes resources by Namespace."
+    },
+    "paths": {
+        "/namespaces": {
+            "get": {
+                "summary": "Get a list of all namespaces in a Kubernetes cluster",
+                "description": "Get a list of all namespaces in a Kubernetes cluster. This API return all the namespace names.",
+                "operationId": "getAllNamespaces",
+                "responses": {
+                    "200": {
+                        "description": "Gets the list of all namespaces in a Kubernetes cluster",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "namespace_name": {
+                                                "type": "string",
+                                                "description": "name of the namespace"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/namespaces/{namespace_name}/get-pods": {
+            "get": {
+                "summary": "Get a list of pods in a specified namespace.",
+                "description": "Get a list of pods in a specified namespace. The API takes in only one namespace name and returns the list of pods in the associated namespace.",
+                "operationId": "getPods",
+                "parameters": [{
+                    "name": "namespace_name",
+                    "in": "path",
+                    "description": "Unique name of the namespace",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "List of pods in a specified namespace",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "pods": {
+                                            "type": "array",
+                                            "description": "An array of pods in the specified namespace.",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string",
+                                                        "description": "Name of the pod"
+                                                    },
+                                                    "phase": {
+                                                        "type": "string",
+                                                        "description": "The phase of the pod"
+                                                    },
+                                                    "containers": {
+                                                        "type": "array",
+                                                        "description": "An array of containers belonging to the pod",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "name": {
+                                                                    "type": "string",
+                                                                    "description": "Name of the container"
+                                                                },
+                                                                "image": {
+                                                                    "type": "string",
+                                                                    "description": "Image of the container"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+        },
+        "/reports/cis": {
+            "get": {
+                "summary": "Get the CIS Benchmark compliance report",
+                "description": "Get the CIS Benchmark compliance report. This API returns an object with the compliance control checks specification and the status results.",
+                "operationId": "getCISReport",
+                "responses": {
+                    "200": {
+                        "description": "CIS Benchmark compliance report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "object",
+                                            "description": "The status object",
+                                            "properties": {
+                                                "summary": {
+                                                    "type": "object",
+                                                    "description": "The summary object",
+                                                    "properties": {
+                                                        "failCount": {
+                                                            "type": "integer",
+                                                            "description": "Number of failed checks"
+                                                        },
+                                                        "passCount": {
+                                                            "type": "integer",
+                                                            "description": "Number of passed checks"
+                                                        }
+                                                    }
+                                                },
+                                                "summaryReport": {
+                                                    "type": "object",
+                                                    "description": "The summary report object",
+                                                    "properties": {
+                                                        "controlCheck": {
+                                                            "type": "array",
+                                                            "description": "An array of control checks",
+                                                            "items": {
+                                                                "type": "object",
+                                                                "description": "A control check object",
+                                                                "properties": {
+                                                                    "id": {
+                                                                        "type": "string",
+                                                                        "description": "Unique ID of the control check"
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string",
+                                                                        "description": "Name of the control check"
+                                                                    },
+                                                                    "severity": {
+                                                                        "type": "string",
+                                                                        "description": "Severity of the control check"
+                                                                    },
+                                                                    "totalFail": {
+                                                                        "type": "integer",
+                                                                        "description": "Total number of failed checks"
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        "id": {
+                                                            "type": "string",
+                                                            "description": "Unique ID of the summary report"
+                                                        },
+                                                        "title": {
+                                                            "type": "string",
+                                                            "description": "Title of the summary report"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
