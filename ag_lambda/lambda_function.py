@@ -126,8 +126,15 @@ def lambda_handler(event, context):
          plural="clustercompliancereports", 
          name="cis"
         )
-      body = {"status": cis_report["status"]} 
-      response_code = 200
+      # check if cis_report["status"] exists
+      try: 
+         body = {"status": cis_report["status"]} 
+         response_code = 200
+    
+      except KeyError:
+         body = {"status": "not found"}
+         response_code = 404
+        
       response_body = {"application/json": {"body": str(body)}}
 
     else: 

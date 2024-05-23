@@ -73,7 +73,8 @@ Later on, the Amazon Bedrock Agent will be prompted to pull and parse through th
 Create an Amazon S3 bucket to store the data sources of the knowledge base: 
 ```
 AWS_ACCOUNT=$(aws sts get-caller-identity --query "Account" --output text)
-
+```
+```
 aws s3 mb s3://eks-bedrock-knowledge-base-data-source-${AWS_ACCOUNT} \
   --region us-west-2
 ```
@@ -150,7 +151,8 @@ Note that the default `CLUSTER_NAME` is set to `bedrock-agent-eks-cluster`. If y
 
 ```
 ./kube-setup.sh
-
+```
+```
 kubectl get cm aws-auth -n kube-system -oyaml
 ```
 ## Test the Knowledge Base 
@@ -183,7 +185,8 @@ Run the `kube-down.sh` script to delete the ClusterRole and ClusterRoleBinding o
 
 ```
 ./kube-down.sh
-
+```
+```
 kubectl get cm aws-auth -n kube-system -oyaml
 ```
 Uninstall the Trivy Operator:
@@ -196,7 +199,7 @@ Optionally, delete the EKS cluster created for testing out this solution:
  ```
 eksctl delete cluster \
  --name bedrock-agent-eks-cluster \
- --region us-west-2 \
+ --region us-west-2
  ```
  Delete the AWS CloudFormation stack: 
  ```
