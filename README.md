@@ -116,7 +116,7 @@ aws s3 sync ~/data_sources s3://eks-bedrock-knowledge-base-data-source-${AWS_ACC
 ## Prepare the Action Group OpenAPI Schema 
 Clone the solution repository: 
 ```
-git clone git@ssh.gitlab.aws.dev:natharno/bedrock-agents-for-eks.git
+git clone git@github.com:aws-samples/bedrock-agents-for-eks.gits
 ```
 The repository contains a pre-configured OpenAPI schema (`open-api-schema.json`) that will be used as part of an action group to specify the API actions that the agent can perform.  Create an Amazon S3 bucket and copy the OpenAPI schema into it for later reference: 
 ```
