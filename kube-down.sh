@@ -1,6 +1,6 @@
 #!/bin/bash
-if ! hash aws 2>/dev/null || ! hash kubectl 2>/dev/null || ! hash eksctl 2>/dev/null; then
-    echo "This script requires the AWS cli, kubectl, and eksctl installed"
+if ! hash aws 2>/dev/null || ! hash kubectl 2>/dev/null; then
+    echo "This script requires the AWS CLI and kubectl to be installed"
     exit 2
 fi
 
@@ -48,15 +48,15 @@ done
 
 echo
 echo ==========
-echo Delete mapping from aws-auth configmap
+echo Delete the access entry for the action group Lambda function
 echo ==========
 echo Cluster: $CLUSTER_NAME
 echo RoleArn: $ROLE_ARN
 echo
 while true; do
-    read -p "Do you want to delete the aws-auth configmap entry? (y/n)" response
+    read -p "Do you want to delete the access entry? (y/n)" response
     case $response in
-        [Yy]* ) eksctl delete iamidentitymapping --cluster $CLUSTER_NAME --region=us-west-2 --arn $ROLE_ARN --all; break;;
+        [Yy]* ) aws eks delete-access-entry --cluster-name $CLUSTER_NAME --principal-arn $ROLE_ARN --region=us-west-2; break;;
         [Nn]* ) break;;
         * ) echo "Response must start with y or n.";;
     esac

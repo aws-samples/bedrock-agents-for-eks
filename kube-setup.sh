@@ -1,6 +1,6 @@
 #!/bin/bash
-if ! hash aws 2>/dev/null || ! hash kubectl 2>/dev/null || ! hash eksctl 2>/dev/null; then
-    echo "This script requires the AWS cli, kubectl, and eksctl installed"
+if ! hash aws 2>/dev/null || ! hash kubectl 2>/dev/null; then
+    echo "This script requires the AWS CLI and kubectl to be installed"
     exit 2
 fi
 
@@ -48,15 +48,15 @@ done
 
 echo
 echo ==========
-echo Update aws-auth configmap with a new mapping
+echo Create an access entry for the action group Lambda function
 echo ==========
 echo Cluster: $CLUSTER_NAME
 echo RoleArn: $ROLE_ARN
 echo
 while true; do
-    read -p "Do you want to create the aws-auth configmap entry? (y/n)" response
+    read -p "Do you want to create the access entry? (y/n)" response
     case $response in
-        [Yy]* ) eksctl create iamidentitymapping --cluster $CLUSTER_NAME --region=us-west-2 --group read-only-group --arn $ROLE_ARN; break;;
+        [Yy]* ) aws eks create-access-entry --cluster-name $CLUSTER_NAME --principal-arn $ROLE_ARN --type STANDARD --kubernetes-groups read-only-group --region=us-west-2; break;;
         [Nn]* ) break;;
         * ) echo "Response must start with y or n.";;
     esac

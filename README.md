@@ -145,15 +145,12 @@ aws cloudformation deploy \
  --region us-west-2
 ```
 ## Configure EKS Cluster Access 
-The `ActionGroupFunction` needs read-only access to the EKS cluster. Run the `kube-setup.sh` script to create the necessary ClusterRole and ClusterRoleBinding objects and update aws-auth ConfigMap: 
+The `ActionGroupFunction` needs read-only access to the EKS cluster. Run the `kube-setup.sh` script to create the necessary ClusterRole and ClusterRoleBinding objects and an [EKS Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html): 
 
 Note that the default `CLUSTER_NAME` is set to `bedrock-agent-eks-cluster`. If you are using another EKS cluster, be sure to update the value in the script before running it. 
 
 ```
 ./kube-setup.sh
-```
-```
-kubectl get cm aws-auth -n kube-system -oyaml
 ```
 ## Test the Knowledge Base 
 You can test agent knowledge bases and action groups using the chat interface built into Amazon Bedrock Dashboard. As a prerequisite, follow [the instructions in the documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-ingest.html) to sync your data source from the Amazon S3 bucket. The sync process converts the raw data in your data source into vector embeddings then ingests them into the knowledge base for querying.
@@ -181,7 +178,7 @@ The Bedrock agent intelligently interpret prompts to determine when it should qu
 ## Clean Up
 To avoid charges in your AWS account, clean up the resources provisioned for this solution. 
 
-Run the `kube-down.sh` script to delete the ClusterRole and ClusterRoleBinding objects and remove the identity mapping from the aws-auth ConfigMap in your EKS cluster:
+Run the `kube-down.sh` script to delete the ClusterRole and ClusterRoleBinding objects and remove the [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) from your EKS cluster:
 
 ```
 ./kube-down.sh
