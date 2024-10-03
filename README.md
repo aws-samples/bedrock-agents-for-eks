@@ -183,9 +183,6 @@ Run the `kube-down.sh` script to delete the ClusterRole and ClusterRoleBinding o
 ```
 ./kube-down.sh
 ```
-```
-kubectl get cm aws-auth -n kube-system -oyaml
-```
 Uninstall the Trivy Operator:
 ```
 helm uninstall trivy-operator -n trivy-system
