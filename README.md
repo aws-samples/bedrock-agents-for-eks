@@ -43,7 +43,7 @@ To deploy a new Amazon EKS Cluster using the [eksctl](https://eksctl.io/usage/cr
 eksctl create cluster \
  --name bedrock-agent-eks-cluster \
  --region us-west-2 \
- --version 1.28
+ --version 1.31
  ```
  The [eksctl](https://eksctl.io/usage/creating-and-managing-clusters/) CLI tool automatically adds the appropriate kubernetes configuration to your kubeconfig file, located at  `~/.kube/config` by default.  You can confirm that you have access to the Amazon EKS cluster by executing the following kubectl command:
  ```
@@ -58,7 +58,7 @@ helm repo update
 helm install trivy-operator aqua/trivy-operator \
   --namespace trivy-system \
   --create-namespace \
-  --version 0.21.0-rc \
+  --version 0.21.4 \
   --set="compliance.cron=*/10 * * * *"
 ```
 The Trivy Operator will generate a compliance report every six hours by default. The `compliance.cron` setting has been updated here to generate reports every 10 minutes for demonstration purposes. 
@@ -88,18 +88,16 @@ git clone git@github.com:kubernetes/website.git
 cp -r website/content/en data_sources/kubernetes_docs
 
 # Get the Amazon EKS Best Practices Guide:
-git clone git@github.com:aws/aws-eks-best-practices.git
-cp -r aws-eks-best-practices data_sources/eks_best_practices
-
-cd data_sources
+curl https://docs.aws.amazon.com/pdfs/eks/latest/best-practices/eks-bpg.pdf \
+ -o data_sources/eks-dest-practices-guide.pdf
 
 # Get the Amazon EKS User Guide: 
 curl https://docs.aws.amazon.com/pdfs/eks/latest/userguide/eks-ug.pdf \
- -o eks-user-guide.pdf
+ -o data_sources/eks-user-guide.pdf
 
 # Get the Amazon EKS API Reference: 
 curl https://docs.aws.amazon.com/pdfs/eks/latest/APIReference/eks-api.pdf \
--o eks-api-ref.pdf
+-o data_sources/eks-api-ref.pdf
 ```
 To add additional data sources, review the [supported file formats](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-ds.html) and ensure that each file size doesn’t exceed the quota of 50 MB.
 
