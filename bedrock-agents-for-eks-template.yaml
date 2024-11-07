@@ -7,7 +7,7 @@ Parameters:
     Default: arn:aws:bedrock:us-west-2::foundation-model/amazon.titan-embed-text-v2:0
   FoundationModelName: 
     Type: String
-    Default: anthropic.claude-3-sonnet-20240229-v1:0
+    Default: anthropic.claude-3-5-sonnet-20241022-v2:0
   FoundationModelARN:
     Type: String
     Default: arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0
