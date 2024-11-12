@@ -32,7 +32,7 @@ To deploy this solution you will need following tools:
 - [Helm](https://helm.sh/docs/intro/install/)
 - [Git](https://github.com/git-guides/install-git)
 
-You will also need to [request access to Bedrock Foundation Models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html#model-access-add). At a minimum, you will need access to [Amazon Titan Embeddings G1 - Text](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html) and [Anthropic Claude models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-claude.html). 
+You will also need to [request access to Bedrock Foundation Models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html#model-access-add). At a minimum, you will need access to [Titan Text Embeddings V2](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html) and [Anthropic Claude](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-claude.html) models.
 
 ### Setup the Amazon EKS Cluster
 Although you can configure this solution to work with an existing Amazon EKS cluster, only non-production environments should be targeted for initial testing and experimentation.  
@@ -75,7 +75,10 @@ Create an Amazon S3 bucket to store the data sources of the knowledge base:
 AWS_ACCOUNT=$(aws sts get-caller-identity --query "Account" --output text)
 ```
 ```
-aws s3 mb s3://eks-bedrock-knowledge-base-data-source-${AWS_ACCOUNT} \
+KB_BUCKET_NAME=bedrock-agents-for-eks-knowledge-base-${AWS_ACCOUNT}
+```
+```
+aws s3 mb s3://${KB_BUCKET_NAME} \
   --region us-west-2
 ```
 Next, create a local directory to store the necessary reference documentation.  This solution uses the [Kubernetes Documentation](https://github.com/kubernetes/website/tree/main/content/en), the [Amazon EKS Best Practices Guide](https://github.com/aws/aws-eks-best-practices), the [Amazon EKS User Guide](https://docs.aws.amazon.com/pdfs/eks/latest/userguide/eks-ug.pdf), and the [Amazon EKS API Reference](https://docs.aws.amazon.com/pdfs/eks/latest/APIReference/eks-api.pdf) as aggregated data sources. 
@@ -104,7 +107,7 @@ To add additional data sources, review the [supported file formats](https://docs
 Finally, use the [aws s3 sync](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3/sync.html) command to copy the data sources to the target Amazon S3 bucket, using a combination of `--exclude`  and `--include` flags to filter out any non-supported file formats. 
 
 ```
-aws s3 sync ~/data_sources s3://eks-bedrock-knowledge-base-data-source-${AWS_ACCOUNT} \
+aws s3 sync ~/data_sources s3://${KB_BUCKET_NAME} \
  --region us-west-2 \
  --exclude "*" \
  --include "*.txt" \
@@ -112,28 +115,21 @@ aws s3 sync ~/data_sources s3://eks-bedrock-knowledge-base-data-source-${AWS_ACC
  --include "*.html" \
  --include "*.pdf" 
 ```
+
 ## Prepare the Action Group OpenAPI Schema 
 Clone the solution repository: 
 ```
 git clone git@github.com:aws-samples/bedrock-agents-for-eks.gits
 ```
-The repository contains a pre-configured OpenAPI schema (`open-api-schema.json`) that will be used as part of an action group to specify the API actions that the agent can perform.  Create an Amazon S3 bucket and copy the OpenAPI schema into it for later reference: 
-```
-# Create an S3 Bucket 
-aws s3 mb s3://eks-bedrock-agent-openapi-schema-${AWS_ACCOUNT} \
- --region us-west-2
-  
-cd bedrock-agents-for-eks
+The repository contains a pre-configured OpenAPI schema (`open-api-schema.json`) that will be used as part of an action group to specify the API actions that the agent can perform. 
 
-aws s3 cp open-api-schema.json s3://eks-bedrock-agent-openapi-schema-${AWS_ACCOUNT} \
- --region us-west-2
-```
+## Deploy the Base Stack
+
 ## Prepare AWS Lambda Function Artifacts
 This solution uses two AWS Lambda functions; the `CustomResourceFunction` creates the necessary vector index in the OpenSearch Serverless collection, while the `ActionGroupFunction` serves as a proxy to give the agent programatic access to the EKS Cluster. Run the `lambda-build.sh` script to install, package, and store the AWS Lambda artifacts that the AWS CloudFormation template references in a newly created S3 Bucket: 
 ```
 ./lambda-build.sh
 ```
-## Deploy the Stack
 Deploy the packaged AWS CloudFormation template: 
 ```
 aws cloudformation deploy \
@@ -201,25 +197,18 @@ eksctl delete cluster \
  ```
  Finally, empty and delete the Amazon S3 buckets that were used to store the data sources, the OpenAPI schema, and the AWS Lambda function artifacts: 
  ```
-aws s3 rm s3://eks-bedrock-knowledge-base-data-source-${AWS_ACCOUNT}/ \
+aws s3 rm s3://bedrock-agents-for-eks-knowledge-base-${AWS_ACCOUNT}/ \
  --recursive \
  --region us-west-2
   
-aws s3 rb s3://eks-bedrock-knowledge-base-data-source-${AWS_ACCOUNT} \
+aws s3 rb s3://bedrock-agents-for-eks-knowledge-base-${AWS_ACCOUNT} \
  --region us-west-2
  
-aws s3 rm s3://eks-bedrock-agent-openapi-schema-${AWS_ACCOUNT}/ \
+aws s3 rm s3://bedrock-agents-for-eks-lambda-artifacts-${AWS_ACCOUNT}/ \
  --recursive \
  --region us-west-2
  
-aws s3 rb s3://eks-bedrock-agent-openapi-schema-${AWS_ACCOUNT} \
- --region us-west-2
- 
-aws s3 rm s3://bedrock-agent-lambda-artifacts-${AWS_ACCOUNT}/ \
- --recursive \
- --region us-west-2
- 
-aws s3 rb s3://bedrock-agent-lambda-artifacts-${AWS_ACCOUNT} \
+aws s3 rb s3://bedrock-agents-for-eks-lambda-artifacts-${AWS_ACCOUNT} \
  --region us-west-2
  ```
 ## Conclusion 

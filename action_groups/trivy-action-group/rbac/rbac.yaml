@@ -1,0 +1,20 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: read-only
+rules:
+- apiGroups: [ "aquasecurity.github.io", ""]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: read-only-binding
+roleRef:
+  kind: ClusterRole
+  name: read-only
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: Group
+  name: trivy-action-group
