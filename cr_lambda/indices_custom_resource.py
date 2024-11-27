@@ -124,7 +124,7 @@ def index_data(region, vector_index_name, text_field,
           },
           f"{vector_field}": {
             "type": "knn_vector",
-            "dimension": 1536,
+            "dimension": 1024,
             "method": {
               "engine": "faiss",
               "space_type": "l2",
