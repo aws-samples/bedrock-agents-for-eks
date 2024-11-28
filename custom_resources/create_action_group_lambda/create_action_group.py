@@ -25,11 +25,14 @@ def lambda_handler(event, context):
             response_data = on_delete()
         else:
             raise ValueError(f"Invalid request type: {request_type}")
+        
+        # Check the Status in response_data to determine success/failure
+        status = cfnresponse.SUCCESS if response_data.get("Status") == "SUCCESS" else cfnresponse.FAILED
 
         cfnresponse.send(
             event,
             context,
-            cfnresponse.SUCCESS,
+            status,
             response_data,
             action_group  # Using action_group name as physical ID
         )
@@ -108,19 +111,19 @@ def on_update():
 
             # Update the action group using the found ID
             response = client.update_agent_action_group(
-                actionGroupExecutor={
-                    'lambda': lambda_arn
-                },
+                agentId=agent_id,
+                agentVersion='DRAFT',
                 actionGroupId=action_group_id,
                 actionGroupName=action_group,
                 actionGroupState='ENABLED',
-                agentId=agent_id,
-                agentVersion='DRAFT',
                 apiSchema={
                     's3': {
                         's3BucketName': schema_bucket,
                         's3ObjectKey': schema_key
                     }
+                },
+                actionGroupExecutor={
+                    'lambda': lambda_arn
                 },
                 description='Use this action group to determine what namespaces exist on the EKS cluster, what pods have been deployed within each namespace, and retrieve details of the CIS Benchmark compliance report checks.'
             )
@@ -147,6 +150,7 @@ def on_delete():
     """
     try:
         client = boto3.client('bedrock-agent')
+        action_group_id = None
         
         try:
             response = client.list_agent_action_groups(
@@ -155,34 +159,72 @@ def on_delete():
             )
             
             # Find the action group with matching name
-            action_group_id = None
-            for group in response.get('agentActionGroupSummaries', []):
+            for group in response.get('actionGroupSummaries', []):
                 if group.get('actionGroupName') == action_group:
                     action_group_id = group.get('actionGroupId')
                     break
             
-            if action_group_id:
+            if not action_group_id:
+                error_msg = f"No action group found with name: {action_group}"
+                print(f"Error: {error_msg}")
+                return {
+                    "Status": "FAILED",
+                    "Message": error_msg
+                }
+
+            # First disable the action group
+            try:
+                client.update_agent_action_group(
+                    agentId=agent_id,
+                    agentVersion='DRAFT',
+                    actionGroupId=action_group_id,
+                    actionGroupName=action_group,
+                    actionGroupState='DISABLED',
+                    apiSchema={
+                        's3': {
+                            's3BucketName': schema_bucket,
+                            's3ObjectKey': schema_key
+                        }
+                    },
+                    actionGroupExecutor={
+                        'lambda': lambda_arn
+                    }
+                )
+                print(f"Successfully disabled action group: {action_group}")
+                
+                # Then delete the action group
                 client.delete_agent_action_group(
                     actionGroupId=action_group_id,
                     agentId=agent_id,
                     agentVersion='DRAFT'
                 )
-            else:
-                print(f"No action group found with name: {action_group}")
+                return {
+                    "Status": "SUCCESS",
+                    "ActionGroupId": action_group_id,
+                    "Message": f"Action Group {action_group} deleted successfully"
+                }
+            except ClientError as modify_error:
+                error_msg = f"Failed to modify/delete action group: {str(modify_error)}"
+                print(f"Error: {error_msg}")
+                return {
+                    "Status": "FAILED",
+                    "Message": error_msg
+                }
                 
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                pass  # If the resource is already gone, that's fine
-            else:
-                raise e
+        except ClientError as list_error:
+            error_msg = f"Failed to list action groups: {str(list_error)}"
+            print(f"Error: {error_msg}")
+            return {
+                "Status": "FAILED",
+                "Message": error_msg
+            }
 
+    except Exception as e:
+        error_msg = f"Unexpected error during deletion: {str(e)}"
+        print(f"Error: {error_msg}")
         return {
-            "Status": "SUCCESS",
-            "ActionGroupId": action_group_id, 
-            "Message": "Action Group deleted successfully"
+            "Status": "FAILED",
+            "Message": error_msg
         }
 
-    except ClientError as e:
-        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
-        error_message = e.response.get('Error', {}).get('Message', str(e))
-        raise Exception(f"Failed to delete action group: {error_code} - {error_message}")
+

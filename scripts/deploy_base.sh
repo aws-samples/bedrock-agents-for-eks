@@ -1,10 +1,10 @@
 #!/bin/bash
+set -eo pipefail
+
 if ! hash aws 2>/dev/null || ! hash pip3 2>/dev/null; then
     echo "This script requires the AWS cli, and pip3 installed"
     exit 2
 fi
-
-set -eo pipefail
 
 # Create the build directory if it doesn't already exist locally
 if [ ! -d "../build" ]; then
@@ -38,15 +38,14 @@ fi
 if ! aws s3api head-bucket --bucket $LAMBDA_BUCKET_NAME > /dev/null 2>&1; then
   echo "S3 Bucket ${LAMBDA_BUCKET_NAME} does not exit"
   echo "Creating S3 Bucket ${LAMBDA_BUCKET_NAME} to store index lamba artifacts"
-  aws s3 mb s3://${LAMBDA_BUCKET_NAME} --region us-west-2
+  aws s3 mb s3://${LAMBDA_BUCKET_NAME}
 fi 
 
 # Package index lambda with base template
 aws cloudformation package \
  --template-file ../cfn-templates/base-template.yaml \
  --s3-bucket $LAMBDA_BUCKET_NAME \
- --output-template-file ../build/packaged-base-template.yaml \
- --region us-west-2
+ --output-template-file ../build/packaged-base-template.yaml
 
 # Check to see if knowledge base bucket environment variable is set, use the default otherwise
 if [ -z "$KB_BUCKET_NAME" ]; then 
@@ -59,7 +58,7 @@ fi
 if ! aws s3api head-bucket --bucket $KB_BUCKET_NAME > /dev/null 2>&1; then
   echo "S3 Bucket ${KB_BUCKET_NAME} does not exit"
   echo "Creating S3 Bucket ${KB_BUCKET_NAME} as a knowledge base data source"
-  aws s3 mb s3://${KB_BUCKET_NAME} --region us-west-2
+  aws s3 mb s3://${KB_BUCKET_NAME}
   echo "Downloading Kubernetes and Amazon EKS reference documentation"
 
   if [ -d "../build/data_sources" ]; then
@@ -86,7 +85,6 @@ if ! aws s3api head-bucket --bucket $KB_BUCKET_NAME > /dev/null 2>&1; then
   # Upload the docs to S3 
   echo "Uploading Kubernetes and Amazon EKS reference documentation to S3 Bucket for knowledge base"
   aws s3 sync ../build/data_sources s3://${KB_BUCKET_NAME} \
-   --region us-west-2 \
    --exclude "*" \
    --include "*.txt" \
    --include "*.md" \
@@ -99,11 +97,9 @@ aws cloudformation deploy \
  --template-file ../build/packaged-base-template.yaml \
  --stack-name bedrock-agents-for-eks-stack \
  --parameter-overrides KnowledgeBaseBucketName=${KB_BUCKET_NAME} SchemaBucketName=${LAMBDA_BUCKET_NAME}\
- --capabilities CAPABILITY_NAMED_IAM \
- --region us-west-2
+ --capabilities CAPABILITY_NAMED_IAM
 
 # Catch the agent id in an environment variable 
-# export AGENT_ID=$(aws cloudformation describe-stacks \
-#  --stack-name bedrock-agents-for-eks-stack \
-#  --region us-west-2 \
-#  --query 'Stacks[0].Outputs[?OutputKey==`BedrockAgentId`].OutputValue' --output text)
+export AGENT_ID=$(aws cloudformation describe-stacks \
+ --stack-name bedrock-agents-for-eks-stack \
+ --query 'Stacks[0].Outputs[?OutputKey==`BedrockAgentId`].OutputValue' --output text)

@@ -1,39 +1,62 @@
 #!/bin/bash
-if ! hash aws 2>/dev/null || ! hash pip3 2>/dev/null; then
-    echo "This script requires the AWS cli, and pip3 installed"
-    exit 2
-fi
-
-if [ -z "$EKS_CLUSTER_NAME" ]; then 
-    echo "Error: EKS_CLUSTER_NAME environment variable not set"
-    echo "This script requires an EKS_CLUSTER_NAME environment variable to be set"
-    exit 1
-fi 
-
 set -eo pipefail
 
-echo "Choose which action group to add to your Bedrock Agent:"
+# Run checks 
+./preflight_checks.sh
+
+# Check to see which action groups are already deployed
+ACTION_GROUP_LIST=$(aws bedrock-agent list-agent-action-groups \
+ --agent-version DRAFT \
+ --agent-id $AGENT_ID \
+ --output json | jq -r '.actionGroupSummaries[].actionGroupName')
+
+if [ -z $ACTION_GROUP_LIST ]; then
+  echo "No action groups found for AGENT_ID: ${AGENT_ID}"
+  existing_groups=()
+else
+  echo "Action groups found for AGENT_ID: ${AGENT_ID}"
+  echo "Existing action groups:"
+  echo $ACTION_GROUP_LIST
+  # Read the newline-separated list into an array
+  IFS=$'\n' read -r -d '' -a existing_groups <<< "$ACTION_GROUP_LIST" || true
+fi
+
 action_group_options=("k8s-action-group" "trivy-action-group")
 
-select opt in "${action_group_options[@]}"
+available_options=()
 
-do
-  case $REPLY in
-    1)
-      echo "Adding the k8s action group to your Bedrock Agent"
-      ACTION_GROUP=k8s-action-group
-      break
-      ;;
-    2)
-      echo "Adding the trivy action group to your Bedrock Agent"
-      ACTION_GROUP=trivy-action-group
-      break
-      ;;
-    *)
-      echo "Invalid option"
-      ;;
-  esac
+# Compare and build list of available options
+for option in "${action_group_options[@]}"; do
+    is_existing=false
+    for existing in "${existing_groups[@]}"; do
+        if [ "$option" = "$existing" ]; then
+            is_existing=true
+            break
+        fi
+    done
+    if [ "$is_existing" = false ]; then
+        available_options+=("$option")
+    fi
 done
+
+# Check if there are any available options
+if [ ${#available_options[@]} -eq 0 ]; then
+    echo "All available action groups have already been added to the agent."
+    exit 0
+# Present the user with a list of available options
+else
+    echo "Choose which action group to add to your Bedrock Agent:"
+    select opt in "${available_options[@]}"
+    do
+        if [ -n "$opt" ]; then
+            echo "Adding the $opt action group to your Bedrock Agent"
+            ACTION_GROUP=$opt
+            break
+        else
+            echo "Invalid option"
+        fi
+    done
+fi
 
 # Create the build directory if it doesn't already exist locally
 if [ ! -d "../build" ]; then
@@ -78,13 +101,12 @@ fi
 # Check to see if the lambda artifact bucket exists, create it otherwise
 if ! aws s3api head-bucket --bucket $LAMBDA_BUCKET_NAME > /dev/null 2>&1; then
   echo "S3 Bucket ${LAMBDA_BUCKET_NAME} does not exit"
-  echo "Creating S3 Bucket ${LAMBDA_BUCKET_NAME} to store index lamba artifacts"
-  aws s3 mb s3://${LAMBDA_BUCKET_NAME} --region us-west-2
+  echo "Creating S3 Bucket ${LAMBDA_BUCKET_NAME} to store index lambda artifacts"
+  aws s3 mb s3://${LAMBDA_BUCKET_NAME}
 fi 
 
 # Upload the API Schema to S3
-aws s3 sync ../action_groups/${ACTION_GROUP}/schema s3://${LAMBDA_BUCKET_NAME}/${ACTION_GROUP}/schema/ \
- --region us-west-2
+aws s3 sync ../action_groups/${ACTION_GROUP}/schema s3://${LAMBDA_BUCKET_NAME}/${ACTION_GROUP}/schema/
 
 SCHEMA_KEY="${ACTION_GROUP}/schema/$(ls ../action_groups/${ACTION_GROUP}/schema)"
 
@@ -92,31 +114,18 @@ SCHEMA_KEY="${ACTION_GROUP}/schema/$(ls ../action_groups/${ACTION_GROUP}/schema)
 aws cloudformation package \
  --template-file ../cfn-templates/agent-template.yaml \
  --s3-bucket $LAMBDA_BUCKET_NAME \
- --output-template-file ../build/packaged-agent-template.yaml \
- --region us-west-2
+ --s3-prefix ${ACTION_GROUP}/lambda \
+ --output-template-file ../build/packaged-agent-template.yaml
 
 # # Deploy the action group stack
 aws cloudformation deploy \
  --template-file ../build/packaged-agent-template.yaml \
  --stack-name ${ACTION_GROUP}-stack \
- --parameter-overrides ActionGroup=${ACTION_GROUP} SchemaBucket=${LAMBDA_BUCKET_NAME} SchemaKey=${SCHEMA_KEY} EKSClusterName=${EKS_CLUSTER_NAME}\
- --capabilities CAPABILITY_NAMED_IAM \
- --region us-west-2
+ --parameter-overrides ActionGroup=${ACTION_GROUP} SchemaBucket=${LAMBDA_BUCKET_NAME} SchemaKey=${SCHEMA_KEY} EKSClusterName=${EKS_CLUSTER_NAME} \
+ --capabilities CAPABILITY_NAMED_IAM
 
 # Create RBAC resources in the EKS Cluster 
-echo ==========
-echo Create Role and RoleBinding in Kubernetes with kubectl
-echo ==========
 RBAC_PATH=../action_groups/${ACTION_GROUP}/rbac/rbac.yaml
-RBAC_OBJECT=$(cat ${RBAC_PATH})
-echo $RBAC_OBJECT
-while true; do
-    read -p "Do you want to create the ClusterRole and ClusterRoleBinding? (y/n)" response
-    case $response in
-        [Yy]* ) echo "$RBAC_OBJECT" | kubectl apply -f -; break;;
-        [Nn]* ) break;;
-        * ) echo "Response must start with y or n.";;
-    esac
-done
-
-
+echo "Adding these RBAC resources to the ${EKS_CLUSTER_NAME} EKS Cluster:"
+cat ${RBAC_PATH}
+kubectl apply -f ${RBAC_PATH}
